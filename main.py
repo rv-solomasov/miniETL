@@ -55,8 +55,19 @@ class Agent:
     def add_destination(self, destination: "Agent"):
         self.destinations.append(destination)
 
-    def receive_data(self, payload):
-        pass
+    def receive_data(self):
+        data = b""
+        while True:
+            chunk = self.socket.recv(1024)
+            if not chunk:
+                break
+            data += chunk
+
+        if data:
+            decoded_data = data.decode()
+            return json.loads(decoded_data)
+        else:
+            return None
 
     def send_data(self, destination: "Agent", payload):
         data = {"destination": destination.id, "payload": payload}
