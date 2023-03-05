@@ -1,6 +1,7 @@
 import unittest
 import threading
 from main import Pipeline, Agent, DataQueue
+from collections import deque
 
 
 class TestPipeline(unittest.TestCase):
@@ -22,6 +23,12 @@ class TestPipeline(unittest.TestCase):
 
         data = {"message": "Hello World!"}
         agent1.send_data(agent2, data)
+
+        agent2_data = deque(
+            [{"destination": 2, "payload": {"message": "Hello World!"}}]
+        )
+
+        self.assertEqual(agent2_data, agent2.data_queue.view())
 
         t1.join()
 
