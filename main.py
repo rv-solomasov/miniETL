@@ -30,9 +30,6 @@ class DataQueue:
     def clear(self):
         self.queue.clear()
 
-    def view(self):
-        return self.queue
-
 
 class Pipeline:
     def __init__(
@@ -47,6 +44,7 @@ class Pipeline:
         self.data_volume = 0
         self.host = host
         self.port = port
+        self.status = 1
 
     def add_agent(self, agent):
         self.agents[agent.id] = agent
@@ -56,24 +54,28 @@ class Pipeline:
         self.socket.bind((self.host, self.port))
         self.socket.listen()
 
-        while True:
+        while self.status:
             conn, addr = self.socket.accept()
             thread = threading.Thread(target=self.handle_client, args=(conn,))
             thread.start()
+        thread.join()
 
     def handle_client(self, conn):
         data = b""
         while True:
             chunk = conn.recv(1024)
+            if not chunk:
+                break
             data += chunk
-            break
         data = json.loads(data.decode("utf-8"))
         agent_id = data.get("destination")
         agent = self.agents.get(agent_id)
         if agent is not None:
             agent.receive_data(data)
-
         conn.close()
+
+    def shutdown(self):
+        self.status = 0
 
 
 class Agent:
@@ -86,9 +88,11 @@ class Agent:
         self.options = {}
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.data_queue = DataQueue(self.pipeline.max_data_volume)
+        self.connected = 0
 
     def connect(self):
         self.socket.connect((self.pipeline.host, self.pipeline.port))
+        self.connected = 1
 
     def add_source(self, source: "Agent"):
         self.sources.append(source.id)
@@ -100,12 +104,15 @@ class Agent:
 
     def receive_data(self, data):
         self.data_queue.push(data)
-        print(self.data_queue.view())
 
     def send_data(self, destination: "Agent", payload):
+        if not self.connected:
+            self.connect()
         data = {"destination": destination.id, "payload": payload}
         print(f"{self.name} sending data to {destination.name}: {data}")
         self.socket.sendall(json.dumps(data).encode())
+        self.socket.close()
+        self.connected = 0
 
 
 # Ideas for memory control

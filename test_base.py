@@ -1,7 +1,8 @@
 import unittest
 import threading
-from main import Pipeline, Agent, DataQueue
+from main import Pipeline, Agent
 from collections import deque
+import time
 
 
 class TestPipeline(unittest.TestCase):
@@ -22,15 +23,22 @@ class TestPipeline(unittest.TestCase):
         agent2.connect()
 
         data = {"message": "Hello World!"}
-        agent1.send_data(agent2, data)
-
         agent2_data = deque(
             [{"destination": 2, "payload": {"message": "Hello World!"}}]
         )
+        agent1.send_data(agent2, data)
+        start = time.time()
 
-        self.assertEqual(agent2_data, agent2.data_queue.view())
+        while agent2.data_queue.queue != agent2_data:
+            continue
+        else:
+            stop = time.time()
 
-        t1.join()
+        self.assertEqual(agent2_data, agent2.data_queue.queue)
+
+        print(f"Time passed <= {stop-start}")
+
+        pipeline.shutdown()
 
 
 if __name__ == "__main__":
