@@ -8,16 +8,19 @@ class DataQueue:
     def __init__(self, max_size):
         self.queue = deque()
         self.max_size = max_size
+        self.curr_size = 0
 
     def push(self, data):
         if len(self.queue) < self.max_size:
             self.queue.append(data)
+            self.curr_size += len(str(data).encode())
         else:
             raise Exception("Queue is full")
 
     def pop(self):
         if len(self.queue) > 0:
-            return self.queue.popleft()
+            data_removed = self.queue.popleft()
+            self.curr_size -= len(str(data_removed).encode())
         else:
             raise Exception("Queue is empty")
 
@@ -45,6 +48,7 @@ class Pipeline:
         self.host = host
         self.port = port
         self.status = 1
+        self.max_queue_size = max_queue_size
 
     def add_agent(self, agent):
         self.agents[agent.id] = agent
@@ -103,32 +107,24 @@ class Agent:
         destination.sources.append(self.id)
 
     def receive_data(self, data):
-        self.data_queue.push(data)
+        if (
+            self.data_queue.curr_size + len(json.dumps(data).encode())
+            <= self.data_queue.max_size
+        ) & (len(data) + len(self.data_queue.queue) <= self.pipeline.max_queue_size):
+            self.data_queue.push(data["payload"])
 
     def send_data(self, destination: "Agent", payload):
         if not self.connected:
             self.connect()
+            self.connected = 1
         data = {"destination": destination.id, "payload": payload}
-        print(f"{self.name} sending data to {destination.name}: {data}")
         self.socket.sendall(json.dumps(data).encode())
         self.socket.close()
+        if payload in self.data_queue.queue:
+            self.data_queue.pop
         self.connected = 0
 
 
-# Ideas for memory control
-"""
-if self.data_queue is not None and len(data) >= self.data_queue.max_size:
-                self.data_queue.push(data)
-                data = b""
-        if data:
-            if self.data_queue is not None:
-                self.data_queue.push(data)
-            else:
-                decoded_data = data.decode()
-                print(f"{self.name} received data: {decoded_data}")
-                return json.loads(decoded_data)
-        return None
-"""
 # Ideas for autonomous processing - no direct ~send/receive_data commands required
 """    def run(self):
         self.socket.listen()

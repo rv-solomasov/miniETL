@@ -23,18 +23,19 @@ class TestPipeline(unittest.TestCase):
         agent2.connect()
 
         data = {"message": "Hello World!"}
-        agent2_data = deque(
-            [{"destination": 2, "payload": {"message": "Hello World!"}}]
-        )
+
+        test_data = deque([data])
+
         agent1.send_data(agent2, data)
         start = time.time()
 
-        while agent2.data_queue.queue != agent2_data:
+        print(f"Testing {test_data} againt {agent2.data_queue.queue}")
+        while agent2.data_queue.queue != test_data:
             continue
         else:
             stop = time.time()
 
-        self.assertEqual(agent2_data, agent2.data_queue.queue)
+        self.assertEqual(test_data, agent2.data_queue.queue)
 
         print(f"Time passed <= {stop-start}")
 
